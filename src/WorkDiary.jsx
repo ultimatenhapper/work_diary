@@ -53,6 +53,7 @@ const WorkDiary = () => {
   const [editingTask, setEditingTask] = useState(null);
   const [loading, setLoading] = useState(true);
   const [setupNeeded, setSetupNeeded] = useState(false);
+  const [statFilter, setStatFilter] = useState(null); // 'completed' or 'active'
 
   // Form state
   const [formData, setFormData] = useState({
@@ -769,18 +770,32 @@ const WorkDiary = () => {
               </div>
               <div className="text-sm text-gray-600 mt-1">Total Tasks</div>
             </div>
-            <div className="text-center">
+            <button
+              onClick={() => setStatFilter(statFilter === "completed" ? null : "completed")}
+              className={`text-center p-3 rounded-xl transition-all ${
+                statFilter === "completed"
+                  ? "bg-green-50 ring-2 ring-green-500"
+                  : "hover:bg-green-50"
+              }`}
+            >
               <div className="text-3xl font-bold text-green-600">
                 {tasks.filter((t) => t.status === "completed").length}
               </div>
               <div className="text-sm text-gray-600 mt-1">Completed</div>
-            </div>
-            <div className="text-center">
+            </button>
+            <button
+              onClick={() => setStatFilter(statFilter === "active" ? null : "active")}
+              className={`text-center p-3 rounded-xl transition-all ${
+                statFilter === "active"
+                  ? "bg-amber-50 ring-2 ring-amber-500"
+                  : "hover:bg-amber-50"
+              }`}
+            >
               <div className="text-3xl font-bold text-amber-600">
                 {tasks.filter((t) => t.status === "active").length}
               </div>
               <div className="text-sm text-gray-600 mt-1">Active</div>
-            </div>
+            </button>
             <div className="text-center">
               <div className="text-3xl font-bold text-red-600">
                 {tasks.filter((t) => t.priority === "urgent").length}
@@ -788,6 +803,61 @@ const WorkDiary = () => {
               <div className="text-sm text-gray-600 mt-1">Urgent</div>
             </div>
           </div>
+
+          {/* Stat Filter Task List */}
+          {statFilter && (
+            <div className="mt-6 border-t border-amber-100 pt-6 fade-in">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-gray-900">
+                  {statFilter === "completed" ? "Completed Tasks" : "Active Tasks"}
+                </h3>
+                <button
+                  onClick={() => setStatFilter(null)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-600"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {tasks
+                  .filter((t) => t.status === statFilter)
+                  .map((task) => (
+                    <div
+                      key={task.id}
+                      className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200"
+                    >
+                      <div
+                        className={`w-2.5 h-2.5 rounded-full ${priorityDots[task.priority]}`}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-medium text-gray-900 truncate ${
+                          task.status === "completed" ? "line-through opacity-60" : ""
+                        }`}>
+                          {task.description}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(task.started_date).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                          })}
+                          {task.labels?.length > 0 && ` · ${task.labels.join(", ")}`}
+                        </p>
+                      </div>
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-xs font-medium ${priorityColors[task.priority]}`}
+                      >
+                        {task.priority}
+                      </span>
+                    </div>
+                  ))}
+                {tasks.filter((t) => t.status === statFilter).length === 0 && (
+                  <p className="text-center text-gray-500 py-4">
+                    No {statFilter} tasks found.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
