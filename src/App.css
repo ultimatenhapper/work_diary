@@ -12,3 +12,14 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* Label chip active state - ensure text visibility */
+.label-chip.bg-amber-500 {
+  color: #ffffff !important;
+  background-color: #f59e0b !important;
+}
+
+.label-chip:not(.bg-amber-500) {
+  color: #374151 !important;
+  background-color: #ffffff !important;
+}

@@ -37,7 +37,7 @@ h1 {
   line-height: 1.1;
 }
 
-button {
+button:not(.label-chip) {
   border-radius: 8px;
   border: 1px solid transparent;
   padding: 0.6em 1.2em;
@@ -48,11 +48,11 @@ button {
   cursor: pointer;
   transition: border-color 0.25s;
 }
-button:hover {
+button:not(.label-chip):hover {
   border-color: #646cff;
 }
-button:focus,
-button:focus-visible {
+button:not(.label-chip):focus,
+button:not(.label-chip):focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
@@ -64,7 +64,7 @@ button:focus-visible {
   a:hover {
     color: #747bff;
   }
-  button {
+  button:not(.label-chip) {
     background-color: #f9f9f9;
   }
 }
