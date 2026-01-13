@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { createClient } from "@supabase/supabase-js";
 import {
   AlertCircle,
   ArrowLeft,
-  ArrowRight,
   Calendar,
+  CalendarDays,
   Check,
   Edit2,
   Link as LinkIcon,
@@ -12,13 +11,10 @@ import {
   Search,
   Tag,
   X,
-} from "https://esm.sh/lucide-react@0.263.1";
-
-// Initialize Supabase client
-// Replace these with your actual Supabase project credentials
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+} from "lucide-react";
+import { supabase } from "./lib/supabase";
+import { useAuth } from "./hooks/useAuth";
+import UserAvatar from "./components/UserAvatar";
 
 /*
 DATABASE SETUP:
@@ -42,7 +38,8 @@ CREATE INDEX idx_tasks_labels ON tasks USING GIN(labels);
 CREATE INDEX idx_tasks_status ON tasks(status);
 */
 
-const WorkDiary = () => {
+const WorkDiary = ({ onSwitchToCalendar }) => {
+  const { user } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [filteredTasks, setFilteredTasks] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -76,6 +73,7 @@ const WorkDiary = () => {
       const { data, error } = await supabase
         .from("tasks")
         .select("*")
+        .eq("user_id", user.id)
         .order("started_date", { ascending: false });
 
       if (error) {
@@ -153,6 +151,7 @@ const WorkDiary = () => {
       notes: formData.notes || null,
       started_date: formData.started_date,
       status: "active",
+      user_id: user.id,
     };
 
     try {
@@ -228,8 +227,8 @@ const WorkDiary = () => {
     }
   };
 
-  // Get unique labels from all tasks
-  const allLabels = [...new Set(tasks.flatMap((task) => task.labels || []))];
+  // Get unique labels from all tasks, sorted alphabetically
+  const allLabels = [...new Set(tasks.flatMap((task) => task.labels || []))].sort((a, b) => a.localeCompare(b));
 
   const priorityColors = {
     low: "bg-blue-100 text-blue-800 border-blue-300",
@@ -368,26 +367,36 @@ const WorkDiary = () => {
                 Your personal activity journal and task manager
               </p>
             </div>
-            <button
-              onClick={() => {
-                setShowAddForm(!showAddForm);
-                if (!showAddForm) {
-                  setEditingTask(null);
-                  setFormData({
-                    description: "",
-                    link: "",
-                    labels: "",
-                    priority: "medium",
-                    notes: "",
-                    started_date: new Date().toISOString().split("T")[0],
-                  });
-                }
-              }}
-              className="btn-primary text-white px-6 py-3 rounded-xl font-semibold flex items-center gap-2 shadow-lg"
-            >
-              {showAddForm ? <X size={20} /> : <Plus size={20} />}
-              {showAddForm ? "Cancel" : "New Task"}
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={onSwitchToCalendar}
+                className="flex items-center gap-2 px-4 py-3 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-xl font-medium transition-colors"
+              >
+                <CalendarDays size={20} />
+                Calendar
+              </button>
+              <button
+                onClick={() => {
+                  setShowAddForm(!showAddForm);
+                  if (!showAddForm) {
+                    setEditingTask(null);
+                    setFormData({
+                      description: "",
+                      link: "",
+                      labels: "",
+                      priority: "medium",
+                      notes: "",
+                      started_date: new Date().toISOString().split("T")[0],
+                    });
+                  }
+                }}
+                className="btn-primary text-white px-6 py-3 rounded-xl font-semibold flex items-center gap-2 shadow-lg"
+              >
+                {showAddForm ? <X size={20} /> : <Plus size={20} />}
+                {showAddForm ? "Cancel" : "New Task"}
+              </button>
+              <UserAvatar />
+            </div>
           </div>
 
           {/* Search and Filters */}
@@ -700,7 +709,7 @@ const WorkDiary = () => {
 
                         {task.labels && task.labels.length > 0 && (
                           <div className="flex flex-wrap gap-2 mt-3">
-                            {task.labels.map((label) => (
+                            {[...task.labels].sort((a, b) => a.localeCompare(b)).map((label) => (
                               <span
                                 key={label}
                                 className="px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-medium border border-amber-200"
@@ -771,7 +780,9 @@ const WorkDiary = () => {
               <div className="text-sm text-gray-600 mt-1">Total Tasks</div>
             </div>
             <button
-              onClick={() => setStatFilter(statFilter === "completed" ? null : "completed")}
+              onClick={() =>
+                setStatFilter(statFilter === "completed" ? null : "completed")
+              }
               className={`text-center p-3 rounded-xl transition-all ${
                 statFilter === "completed"
                   ? "bg-green-50 ring-2 ring-green-500"
@@ -784,7 +795,9 @@ const WorkDiary = () => {
               <div className="text-sm text-gray-600 mt-1">Completed</div>
             </button>
             <button
-              onClick={() => setStatFilter(statFilter === "active" ? null : "active")}
+              onClick={() =>
+                setStatFilter(statFilter === "active" ? null : "active")
+              }
               className={`text-center p-3 rounded-xl transition-all ${
                 statFilter === "active"
                   ? "bg-amber-50 ring-2 ring-amber-500"
@@ -809,7 +822,9 @@ const WorkDiary = () => {
             <div className="mt-6 border-t border-amber-100 pt-6 fade-in">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xl font-bold text-gray-900">
-                  {statFilter === "completed" ? "Completed Tasks" : "Active Tasks"}
+                  {statFilter === "completed"
+                    ? "Completed Tasks"
+                    : "Active Tasks"}
                 </h3>
                 <button
                   onClick={() => setStatFilter(null)}
@@ -827,24 +842,36 @@ const WorkDiary = () => {
                       className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200"
                     >
                       <div
-                        className={`w-2.5 h-2.5 rounded-full ${priorityDots[task.priority]}`}
+                        className={`w-2.5 h-2.5 rounded-full ${
+                          priorityDots[task.priority]
+                        }`}
                       />
                       <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-medium text-gray-900 truncate ${
-                          task.status === "completed" ? "line-through opacity-60" : ""
-                        }`}>
+                        <p
+                          className={`text-sm font-medium text-gray-900 truncate ${
+                            task.status === "completed"
+                              ? "line-through opacity-60"
+                              : ""
+                          }`}
+                        >
                           {task.description}
                         </p>
                         <p className="text-xs text-gray-500">
-                          {new Date(task.started_date).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                          })}
-                          {task.labels?.length > 0 && ` · ${task.labels.join(", ")}`}
+                          {new Date(task.started_date).toLocaleDateString(
+                            "en-US",
+                            {
+                              month: "short",
+                              day: "numeric",
+                            }
+                          )}
+                          {task.labels?.length > 0 &&
+                            ` · ${[...task.labels].sort((a, b) => a.localeCompare(b)).join(", ")}`}
                         </p>
                       </div>
                       <span
-                        className={`px-2 py-0.5 rounded-full text-xs font-medium ${priorityColors[task.priority]}`}
+                        className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                          priorityColors[task.priority]
+                        }`}
                       >
                         {task.priority}
                       </span>

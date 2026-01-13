@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Work Diary is a personal activity journal and task management web application. It's a modern React frontend that connects to Supabase (PostgreSQL) for data persistence.
+Work Diary is a personal activity journal and task management web application with user authentication. It's a React frontend that connects to Supabase for authentication and data persistence.
 
 ## Common Commands
 
@@ -17,29 +17,51 @@ npm run preview   # Preview production build locally
 
 ## Tech Stack
 
-- **Frontend:** React 18 with Vite 7
+- **Frontend:** React 18 with Vite
 - **Database:** Supabase (PostgreSQL)
+- **Authentication:** Supabase Auth
 - **Styling:** Tailwind CSS 4
 - **Icons:** lucide-react
 
 ## Architecture
 
-The application uses a monolithic single-component architecture:
+```
+src/
+├── components/
+│   ├── AuthPage.jsx      # Login/signup UI
+│   └── UserAvatar.jsx    # User avatar with logout dropdown
+├── context/
+│   ├── AuthContext.jsx   # Auth provider (manages auth state)
+│   └── AuthContextDef.js # Auth context definition
+├── hooks/
+│   └── useAuth.js        # Hook to access auth context
+├── lib/
+│   └── supabase.js       # Centralized Supabase client
+├── App.jsx               # View router + auth guard
+├── WorkDiary.jsx         # Main list view (~900 lines)
+├── CalendarView.jsx      # Calendar view (~400 lines)
+└── main.jsx              # Entry point with AuthProvider
+```
 
-- `src/WorkDiary.jsx` - Main component containing all application logic (~800 lines):
-  - State management using React Hooks (useState, useEffect)
-  - Supabase CRUD operations for tasks
-  - Filtering system (search, date, priority, labels)
-  - Task list rendering with inline actions
-  - Form modal for creating/editing tasks
-  - Statistics dashboard
+### Key Components
 
-- `src/main.jsx` - React entry point, renders WorkDiary component
+- **App.jsx** - Routes between views, shows AuthPage if not logged in
+- **WorkDiary.jsx** - List view with task CRUD, search, filters, stats
+- **CalendarView.jsx** - Monthly calendar with task visualization
+- **AuthContext.jsx** - Provides user, signIn, signUp, signOut
+
+### Data Flow
+
+1. `main.jsx` wraps app with `AuthProvider`
+2. `App.jsx` checks auth state via `useAuth()` hook
+3. If logged in, renders WorkDiary or CalendarView
+4. Both views filter tasks by `user_id` using Supabase RLS
 
 ## Database Schema
 
-Tasks table structure in Supabase:
+Tasks table with Row Level Security:
 - `id` (UUID) - Primary key
+- `user_id` (UUID) - References auth.users(id)
 - `description` (TEXT) - Required task description
 - `link` (TEXT) - Optional URL
 - `labels` (TEXT[]) - Array of label strings
@@ -59,7 +81,9 @@ VITE_SUPABASE_ANON_KEY=<your-supabase-anon-key>
 
 ## Code Patterns
 
-- All Supabase interactions are in WorkDiary.jsx using `@supabase/supabase-js`
-- Filtering is client-side after fetching all tasks
-- Priority levels are color-coded (low=blue, medium=amber, high=orange, urgent=rose)
-- Labels are stored as comma-separated strings in the form, converted to arrays for storage
+- Supabase client is centralized in `src/lib/supabase.js`
+- Auth state managed via React Context (`AuthContext`)
+- All task queries include `.eq("user_id", user.id)` filter
+- Task creation includes `user_id: user.id` in the data
+- Priority colors: low=blue, medium=amber, high=orange, urgent=red
+- Labels stored as comma-separated in form, converted to arrays for DB

@@ -37,7 +37,7 @@ h1 {
   line-height: 1.1;
 }
 
-button:not(.label-chip) {
+button:not(.label-chip):not(.calendar-day) {
   border-radius: 8px;
   border: 1px solid transparent;
   padding: 0.6em 1.2em;
@@ -48,11 +48,11 @@ button:not(.label-chip) {
   cursor: pointer;
   transition: border-color 0.25s;
 }
-button:not(.label-chip):hover {
+button:not(.label-chip):not(.calendar-day):hover {
   border-color: #646cff;
 }
-button:not(.label-chip):focus,
-button:not(.label-chip):focus-visible {
+button:not(.label-chip):not(.calendar-day):focus,
+button:not(.label-chip):not(.calendar-day):focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
@@ -64,7 +64,7 @@ button:not(.label-chip):focus-visible {
   a:hover {
     color: #747bff;
   }
-  button:not(.label-chip) {
+  button:not(.label-chip):not(.calendar-day) {
     background-color: #f9f9f9;
   }
 }
