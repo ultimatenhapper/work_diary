@@ -5,11 +5,14 @@ import {
   Calendar,
   CalendarDays,
   Check,
+  ChevronDown,
   Edit2,
   Link as LinkIcon,
+  Pencil,
   Plus,
   Search,
   Tag,
+  Trash2,
   X,
 } from "lucide-react";
 import { supabase } from "./lib/supabase";
@@ -51,6 +54,9 @@ const WorkDiary = ({ onSwitchToCalendar }) => {
   const [loading, setLoading] = useState(true);
   const [setupNeeded, setSetupNeeded] = useState(false);
   const [statFilter, setStatFilter] = useState(null); // 'completed' or 'active'
+  const [labelsExpanded, setLabelsExpanded] = useState(true);
+  const [editingLabel, setEditingLabel] = useState(null);
+  const [editLabelValue, setEditLabelValue] = useState("");
 
   // Form state
   const [formData, setFormData] = useState({
@@ -107,8 +113,8 @@ const WorkDiary = ({ onSwitchToCalendar }) => {
           task.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
           task.notes?.toLowerCase().includes(searchQuery.toLowerCase()) ||
           task.labels?.some((label) =>
-            label.toLowerCase().includes(searchQuery.toLowerCase())
-          )
+            label.toLowerCase().includes(searchQuery.toLowerCase()),
+          ),
       );
     }
 
@@ -123,7 +129,7 @@ const WorkDiary = ({ onSwitchToCalendar }) => {
     // Labels filter
     if (selectedLabels.length > 0) {
       filtered = filtered.filter((task) =>
-        task.labels?.some((label) => selectedLabels.includes(label))
+        task.labels?.some((label) => selectedLabels.includes(label)),
       );
     }
 
@@ -227,8 +233,95 @@ const WorkDiary = ({ onSwitchToCalendar }) => {
     }
   };
 
+  const handleRenameLabel = async (oldLabel, newLabel) => {
+    const trimmedNewLabel = newLabel.trim();
+    if (!trimmedNewLabel || trimmedNewLabel === oldLabel) {
+      setEditingLabel(null);
+      setEditLabelValue("");
+      return;
+    }
+
+    try {
+      // Find all tasks that have this label
+      const tasksWithLabel = tasks.filter((task) =>
+        task.labels?.includes(oldLabel),
+      );
+
+      // Update each task, replacing the old label with the new one
+      for (const task of tasksWithLabel) {
+        const updatedLabels = task.labels.map((l) =>
+          l === oldLabel ? trimmedNewLabel : l,
+        );
+        const { error } = await supabase
+          .from("tasks")
+          .update({
+            labels: updatedLabels,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", task.id);
+
+        if (error) throw error;
+      }
+
+      // Update selectedLabels if the renamed label was selected
+      if (selectedLabels.includes(oldLabel)) {
+        setSelectedLabels((prev) =>
+          prev.map((l) => (l === oldLabel ? trimmedNewLabel : l)),
+        );
+      }
+
+      setEditingLabel(null);
+      setEditLabelValue("");
+      fetchTasks();
+    } catch (error) {
+      console.error("Error renaming label:", error);
+      alert("Error renaming label. Please try again.");
+    }
+  };
+
+  const handleDeleteLabel = async (labelToDelete) => {
+    if (
+      !confirm(
+        `Delete label "${labelToDelete}"? This will remove it from all tasks.`,
+      )
+    ) {
+      return;
+    }
+
+    try {
+      // Find all tasks that have this label
+      const tasksWithLabel = tasks.filter((task) =>
+        task.labels?.includes(labelToDelete),
+      );
+
+      // Update each task, removing the label
+      for (const task of tasksWithLabel) {
+        const updatedLabels = task.labels.filter((l) => l !== labelToDelete);
+        const { error } = await supabase
+          .from("tasks")
+          .update({
+            labels: updatedLabels,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", task.id);
+
+        if (error) throw error;
+      }
+
+      // Remove from selectedLabels if it was selected
+      setSelectedLabels((prev) => prev.filter((l) => l !== labelToDelete));
+
+      fetchTasks();
+    } catch (error) {
+      console.error("Error deleting label:", error);
+      alert("Error deleting label. Please try again.");
+    }
+  };
+
   // Get unique labels from all tasks, sorted alphabetically
-  const allLabels = [...new Set(tasks.flatMap((task) => task.labels || []))].sort((a, b) => a.localeCompare(b));
+  const allLabels = [
+    ...new Set(tasks.flatMap((task) => task.labels || [])),
+  ].sort((a, b) => a.localeCompare(b));
 
   const priorityColors = {
     low: "bg-blue-100 text-blue-800 border-blue-300",
@@ -454,26 +547,114 @@ const WorkDiary = ({ onSwitchToCalendar }) => {
 
           {/* Label Filter Chips */}
           {allLabels.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-4">
-              {allLabels.map((label) => (
-                <button
-                  key={label}
-                  onClick={() => {
-                    setSelectedLabels((prev) =>
-                      prev.includes(label)
-                        ? prev.filter((l) => l !== label)
-                        : [...prev, label]
+            <div className="mt-4">
+              <button
+                onClick={() => setLabelsExpanded(!labelsExpanded)}
+                className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors mb-2"
+              >
+                <ChevronDown
+                  size={16}
+                  className={`transition-transform ${labelsExpanded ? "" : "-rotate-90"}`}
+                />
+                Labels ({allLabels.length})
+                {selectedLabels.length > 0 && (
+                  <span className="px-2 py-0.5 bg-amber-500 text-white rounded-full text-xs">
+                    {selectedLabels.length} selected
+                  </span>
+                )}
+              </button>
+              {labelsExpanded && (
+                <div className="flex flex-wrap gap-2">
+                  {allLabels.map((label) => {
+                    const isSelected = selectedLabels.includes(label);
+
+                    if (isSelected) {
+                      return (
+                        <button
+                          key={label}
+                          onClick={() =>
+                            setSelectedLabels((prev) =>
+                              prev.filter((l) => l !== label),
+                            )
+                          }
+                          className="label-chip px-3 py-1.5 rounded-full text-sm font-medium bg-amber-500 text-white shadow-md transition-all"
+                        >
+                          {label}
+                        </button>
+                      );
+                    }
+
+                    if (editingLabel === label) {
+                      return (
+                        <form
+                          key={label}
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            handleRenameLabel(label, editLabelValue);
+                          }}
+                          className="flex items-center"
+                        >
+                          <input
+                            type="text"
+                            value={editLabelValue}
+                            onChange={(e) => setEditLabelValue(e.target.value)}
+                            onBlur={() =>
+                              handleRenameLabel(label, editLabelValue)
+                            }
+                            onKeyDown={(e) => {
+                              if (e.key === "Escape") {
+                                setEditingLabel(null);
+                                setEditLabelValue("");
+                              }
+                            }}
+                            autoFocus
+                            className="w-24 px-3 py-1.5 text-sm rounded-full border border-amber-400 outline-none bg-white text-gray-900"
+                          />
+                        </form>
+                      );
+                    }
+
+                    return (
+                      <div
+                        key={label}
+                        className="label-chip group flex items-center gap-1 rounded-full text-sm font-medium bg-white text-gray-700 border border-amber-200 hover:border-amber-400 transition-all"
+                      >
+                        <button
+                          onClick={() =>
+                            setSelectedLabels((prev) => [...prev, label])
+                          }
+                          className="pl-3 py-1.5"
+                        >
+                          {label}
+                        </button>
+                        <div className="flex items-center gap-0.5 pr-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingLabel(label);
+                              setEditLabelValue(label);
+                            }}
+                            className="p-1 rounded-full transition-colors hover:bg-amber-100"
+                            title="Edit label"
+                          >
+                            <Pencil size={12} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteLabel(label);
+                            }}
+                            className="p-1 rounded-full transition-colors hover:bg-red-100 hover:text-red-600"
+                            title="Delete label"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </div>
                     );
-                  }}
-                  className={`label-chip px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-                    selectedLabels.includes(label)
-                      ? "bg-amber-500 text-white shadow-md"
-                      : "bg-white text-gray-700 border border-amber-200 hover:border-amber-400"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -616,7 +797,7 @@ const WorkDiary = ({ onSwitchToCalendar }) => {
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-4 w-full max-w-5xl">
             {filteredTasks.map((task, index) => (
               <div
                 key={task.id}
@@ -682,7 +863,7 @@ const WorkDiary = ({ onSwitchToCalendar }) => {
                                 month: "short",
                                 day: "numeric",
                                 year: "numeric",
-                              }
+                              },
                             )}
                           </span>
 
@@ -709,15 +890,17 @@ const WorkDiary = ({ onSwitchToCalendar }) => {
 
                         {task.labels && task.labels.length > 0 && (
                           <div className="flex flex-wrap gap-2 mt-3">
-                            {[...task.labels].sort((a, b) => a.localeCompare(b)).map((label) => (
-                              <span
-                                key={label}
-                                className="px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-medium border border-amber-200"
-                              >
-                                <Tag size={12} className="inline mr-1" />
-                                {label}
-                              </span>
-                            ))}
+                            {[...task.labels]
+                              .sort((a, b) => a.localeCompare(b))
+                              .map((label) => (
+                                <span
+                                  key={label}
+                                  className="px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-medium border border-amber-200"
+                                >
+                                  <Tag size={12} className="inline mr-1" />
+                                  {label}
+                                </span>
+                              ))}
                           </div>
                         )}
                       </div>
@@ -862,7 +1045,7 @@ const WorkDiary = ({ onSwitchToCalendar }) => {
                             {
                               month: "short",
                               day: "numeric",
-                            }
+                            },
                           )}
                           {task.labels?.length > 0 &&
                             ` · ${[...task.labels].sort((a, b) => a.localeCompare(b)).join(", ")}`}
