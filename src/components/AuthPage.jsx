@@ -1,16 +1,17 @@
 import React, { useState } from "react";
 import { useAuth } from "../hooks/useAuth";
-import { Mail, Lock, LogIn, UserPlus, AlertCircle } from "lucide-react";
+import { Mail, Lock, LogIn, UserPlus, AlertCircle, Send } from "lucide-react";
 
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, resetPassword } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -19,7 +20,11 @@ const AuthPage = () => {
     setLoading(true);
 
     try {
-      if (isLogin) {
+      if (isForgotPassword) {
+        await resetPassword(email);
+        setMessage("Check your email for the password reset link!");
+        setEmail("");
+      } else if (isLogin) {
         await signIn(email, password);
       } else {
         await signUp(email, password);
@@ -35,7 +40,7 @@ const AuthPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-linear-to-br from-amber-50 via-orange-50 to-rose-50 flex items-center justify-center p-4">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=Inter:wght@400;500;600&display=swap');
 
@@ -69,9 +74,15 @@ const AuthPage = () => {
         <div className="bg-white rounded-2xl shadow-xl p-8 border border-amber-200">
           {/* Header */}
           <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">Work Diary</h1>
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">
+              Work Diary
+            </h1>
             <p className="text-gray-600">
-              {isLogin ? "Welcome back!" : "Create your account"}
+              {isForgotPassword
+                ? "Reset your password"
+                : isLogin
+                  ? "Welcome back!"
+                  : "Create your account"}
             </p>
           </div>
 
@@ -112,26 +123,44 @@ const AuthPage = () => {
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Password
-              </label>
-              <div className="relative">
-                <Lock
-                  className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"
-                  size={20}
-                />
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  required
-                  minLength={6}
-                  className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-300 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-100"
-                />
+            {!isForgotPassword && (
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock
+                    className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"
+                    size={20}
+                  />
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                    minLength={6}
+                    className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-300 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-100"
+                  />
+                </div>
               </div>
-            </div>
+            )}
+
+            {isLogin && !isForgotPassword && (
+              <div className="text-right">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsForgotPassword(true);
+                    setError("");
+                    setMessage("");
+                  }}
+                  className="text-sm text-amber-600 hover:text-amber-700 font-medium"
+                >
+                  Forgot password?
+                </button>
+              </div>
+            )}
 
             <button
               type="submit"
@@ -140,6 +169,11 @@ const AuthPage = () => {
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : isForgotPassword ? (
+                <>
+                  <Send size={20} />
+                  Send Reset Link
+                </>
               ) : isLogin ? (
                 <>
                   <LogIn size={20} />
@@ -156,7 +190,21 @@ const AuthPage = () => {
 
           {/* Toggle */}
           <div className="mt-6 text-center text-sm text-gray-600">
-            {isLogin ? (
+            {isForgotPassword ? (
+              <>
+                Remember your password?{" "}
+                <button
+                  onClick={() => {
+                    setIsForgotPassword(false);
+                    setError("");
+                    setMessage("");
+                  }}
+                  className="text-amber-600 hover:text-amber-700 font-semibold"
+                >
+                  Back to login
+                </button>
+              </>
+            ) : isLogin ? (
               <>
                 Don't have an account?{" "}
                 <button

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Work Diary is a personal activity journal and task management web application with user authentication. It's a React frontend that connects to Supabase for authentication and data persistence.
+Work Diary is a personal task management web application with user authentication. React frontend connecting to Supabase for auth and data persistence.
 
 ## Common Commands
 
@@ -25,51 +25,28 @@ npm run preview   # Preview production build locally
 
 ## Architecture
 
-```
-src/
-├── components/
-│   ├── AuthPage.jsx      # Login/signup UI
-│   └── UserAvatar.jsx    # User avatar with logout dropdown
-├── context/
-│   ├── AuthContext.jsx   # Auth provider (manages auth state)
-│   └── AuthContextDef.js # Auth context definition
-├── hooks/
-│   └── useAuth.js        # Hook to access auth context
-├── lib/
-│   └── supabase.js       # Centralized Supabase client
-├── App.jsx               # View router + auth guard
-├── WorkDiary.jsx         # Main list view (~900 lines)
-├── CalendarView.jsx      # Calendar view (~400 lines)
-└── main.jsx              # Entry point with AuthProvider
-```
-
-### Key Components
-
-- **App.jsx** - Routes between views, shows AuthPage if not logged in
-- **WorkDiary.jsx** - List view with task CRUD, search, filters, stats
-- **CalendarView.jsx** - Monthly calendar with task visualization
-- **AuthContext.jsx** - Provides user, signIn, signUp, signOut
-
 ### Data Flow
 
 1. `main.jsx` wraps app with `AuthProvider`
 2. `App.jsx` checks auth state via `useAuth()` hook
-3. If logged in, renders WorkDiary or CalendarView
+3. If not logged in → `AuthPage`, otherwise → `WorkDiary` or `CalendarView`
 4. Both views filter tasks by `user_id` using Supabase RLS
+
+### Key Files
+
+- **App.jsx** - View router + auth guard (diary/calendar toggle)
+- **WorkDiary.jsx** - Main list view with task CRUD, search, filters, stats (~900 lines)
+- **CalendarView.jsx** - Monthly calendar with task visualization (~400 lines)
+- **AuthContext.jsx** - Provides `user`, `signIn`, `signUp`, `signOut`, `updatePassword`, `updateProfile`, `resetPassword`
+- **lib/supabase.js** - Centralized Supabase client instance
 
 ## Database Schema
 
 Tasks table with Row Level Security:
-- `id` (UUID) - Primary key
-- `user_id` (UUID) - References auth.users(id)
-- `description` (TEXT) - Required task description
-- `link` (TEXT) - Optional URL
-- `labels` (TEXT[]) - Array of label strings
-- `started_date` (TIMESTAMPTZ) - Task start date
-- `priority` (TEXT) - low/medium/high/urgent
-- `status` (TEXT) - active/completed/paused
-- `notes` (TEXT) - Optional notes
-- `created_at`, `updated_at` (TIMESTAMPTZ)
+- `id` (UUID), `user_id` (UUID → auth.users)
+- `description` (TEXT, required), `link` (TEXT), `notes` (TEXT)
+- `labels` (TEXT[]), `priority` (low/medium/high/urgent), `status` (active/completed/paused)
+- `started_date`, `created_at`, `updated_at` (TIMESTAMPTZ)
 
 ## Environment Variables
 
@@ -81,9 +58,9 @@ VITE_SUPABASE_ANON_KEY=<your-supabase-anon-key>
 
 ## Code Patterns
 
-- Supabase client is centralized in `src/lib/supabase.js`
-- Auth state managed via React Context (`AuthContext`)
-- All task queries include `.eq("user_id", user.id)` filter
-- Task creation includes `user_id: user.id` in the data
+- All Supabase queries go through `src/lib/supabase.js`
+- All task queries must include `.eq("user_id", user.id)` filter
+- Task creation must include `user_id: user.id` in the data
 - Priority colors: low=blue, medium=amber, high=orange, urgent=red
-- Labels stored as comma-separated in form, converted to arrays for DB
+- Labels: comma-separated in forms, converted to arrays for DB storage
+- User profile data (avatar_color, avatar_initials) stored in `user.user_metadata`
